@@ -1,19 +1,18 @@
 import './style.css'
 import * as THREE from 'three'
 import {OrbitControls} from 'three/examples/jsm/controls/OrbitControls.js'
-import vertexShader from './shaders/vertex.glsl'
+import vertex from './shaders/vertex.glsl'
 import shadowFragment from './shaders/shadowFragment.glsl' 
-import fragmentShader from './shaders/fragment.glsl'
+import fragment from './shaders/fragment.glsl'
 import { ShadowMapViewer} from 'three/examples/jsm/utils/ShadowMapViewer.js'
 import { GUI } from 'three/examples/jsm/libs/lil-gui.module.min.js';
 import {GLTFLoader} from 'three/examples/jsm/loaders/GLTFLoader.js';
 
 let intensity_0 = new THREE.Vector4(1, 0, 0, 0);
-let group = new THREE.Group();
-let meshProps = [];
-let helpers = [];
+const color = new THREE.Color(0xE1E5EA);
+const shadowColor = new THREE.Color(0x333333);
+
 let uniforms;
-let octa, sphere, dode, donut;
 
 
 let isMobile = false;
@@ -59,7 +58,7 @@ const sizes = {
  * Camera
  */
 const camera = new THREE.PerspectiveCamera(75, sizes.width / sizes.height, 1, 10000)
-camera.position.set(-10,0,70).multiplyScalar(2);
+camera.position.set(90,60,90).multiplyScalar(2);
 scene.add(camera)
 
 
@@ -81,8 +80,8 @@ light.shadow.camera.lookAt(scene.position)
 
 scene.add(light.shadow.camera);
 
-light.shadow.mapSize.x = 4096;
-light.shadow.mapSize.y = 4096;
+light.shadow.mapSize.x = 2048;
+light.shadow.mapSize.y = 2048;
 
 const pars = {
     minFilter: THREE.NearestFilter,
@@ -96,6 +95,56 @@ const shadowCameraHelper = new THREE.CameraHelper( light.shadow.camera );
 /**
  * Object
  */
+
+uniforms = {
+    shadowColor:{
+        value: shadowColor
+    },
+    uTime: {
+        value: 0
+    },
+    uColor: {
+        value: new THREE.Color(color)
+    },
+    uLightPos: {
+        value: light.position
+    },
+    uDepthMap: {
+        value: light.shadow.map.texture
+    },
+    uShadowCameraP: {
+        value: light.shadow.camera.projectionMatrix
+    },
+    uShadowCameraV: {
+        value: light.shadow.camera.matrixWorldInverse
+    },
+    uIntensity_0: {
+        value: intensity_0
+    },
+
+    u_texture : {
+        value: texture1
+    },
+}
+
+
+const material = new THREE.ShaderMaterial({
+    vertexShader : vertex,
+    fragmentShader : fragment,
+    uniforms: uniforms
+});
+ 
+const geometry = new THREE.BoxGeometry(40, 40, 40)
+const mesh = new THREE.Mesh(geometry, material)
+mesh.position.set(40,20,-30)
+scene.add(mesh)
+
+const groundGeo = new THREE.BoxGeometry(250,250,250)
+const groundMat = new THREE.MeshStandardMaterial({ color: 0xffffff})
+const ground = new THREE.Mesh(groundGeo, groundMat)
+ground.position.set(0,-125,0)
+
+scene.add(ground);
 
 
 /**
@@ -132,10 +181,15 @@ const controls = new OrbitControls(camera, canvas);
 
 
 
+const shadowMaterial = new THREE.ShaderMaterial({
+    vertexShader : vertex,
+    fragmentShader : shadowFragment
+})
+
 
 
 const depthViewer = new ShadowMapViewer(light);
-depthViewer.size.set( 300, 300 );
+depthViewer.size.set( 600, 600 );
 
 
 renderer.setRenderTarget(null);
@@ -152,33 +206,32 @@ const tick = () =>
     
     controls.update();
 
-    for(let i = 0; i < meshProps.length; i++){
-        const allMeshProps = meshProps[i];
-        allMeshProps.mesh.material = allMeshProps.shadowMaterial;
-    }
-
-
-    for(let i = 0; i < helpers.length; i++){
-        this.helpers[i].visible = false;
-    }
+    mesh.material = shadowMaterial
+    ground.material = shadowMaterial
+    girl.traverse((gltf)=>{
+        gltf.material = shadowMaterial
+    })
    
+   
+
     renderer.setRenderTarget(light.shadow.map)
     renderer.render(scene, light.shadow.camera)
 
     
-    for(let i = 0; i < meshProps.length; i++){
-        const allMeshProps = meshProps[i];
-        allMeshProps.mesh.material = allMeshProps.material;
-    }
+    mesh.material = material
+    ground.material = material
+  
+    girl.traverse((gltf)=>{
+        gltf.material = material
+        gltf.material.needsUpdate = true
+        
+    })
     
 
     renderer.setRenderTarget(null);
     renderer.render(scene, camera);
 
-    depthViewer.render( renderer );
-
-    octa.rotation.x += 0.02;
-    donut.rotation.z += 0.01;
+    //depthViewer.render( renderer );
 
     //renderer.render(scene, camera);
 
@@ -188,9 +241,9 @@ const tick = () =>
 
 
 
-scene.add(group);
-createMesh();
-//createControls();
+modelLoad('Girl_mesh');
+const girl = scene.getObjectByName('Girl_mesh')
+createControls();
 tick();
 
 
@@ -267,90 +320,3 @@ function modelLoad(name)
         )
     }
 
-
-function createMesh()
-{
-    octa = createObj(new THREE.OctahedronGeometry(30), 0xff70fd, 0x1c05fe);
-    octa.position.set(0,0,0);
-
-    sphere = createObj(new THREE.SphereGeometry(20), 0xeffe05, 0x1c05fe);
-    sphere.position.set(-50,-10,-0);
-
-    dode = createObj(new THREE.DodecahedronGeometry(55),0x05effe, 0x1c05fe);
-    dode.position.set(0,-80,0);
-
-    donut = createObj(new THREE.TorusKnotGeometry( 9, 6, 300, 100 ), 0xff70fd, 0x1c05fe);
-    donut.position.set(50,-60,0)
-
-}
-
-
-
-function createMaterial(color, shadowColor, vertexShader, fragmentShader)
-{
-    uniforms = {
-        
-        shadowColor:{
-            value: new THREE.Color(shadowColor)
-        },
-        uTime: {
-            value: 0
-        },
-        uColor: {
-            value: new THREE.Color(color)
-        },
-        uLightPos: {
-            value: light.position
-        },
-        uDepthMap: {
-            value: light.shadow.map.texture
-        },
-        uShadowCameraP: {
-            value: light.shadow.camera.projectionMatrix
-        },
-        uShadowCameraV: {
-            value: light.shadow.camera.matrixWorldInverse
-        },
-        uIntensity_0: {
-            value: intensity_0
-        },
-    
-        u_texture : {
-            value: texture1
-        }
-    }
-
-    const material = new THREE.ShaderMaterial({
-        vertexShader,
-        fragmentShader,
-        uniforms,
-    });
-
-    const shadowMaterial = new THREE.ShaderMaterial({
-        vertexShader,
-        fragmentShader: shadowFragment,
-        uniforms,
-        // side: THREE.BackSide
-    });
-
-    return {material, shadowMaterial}
-}
-
-function createObj(geometry, color, shadowColor)
-    {
-        const {material, shadowMaterial} = createMaterial(color, shadowColor, vertexShader, fragmentShader);
-
-        const mesh = new THREE.Mesh(geometry, material);
-
-        group.add(mesh);
-
-        meshProps.push({
-            mesh, material, shadowMaterial
-        })
-
-        return mesh;
-
-    }
-    
-
-  
