@@ -59,13 +59,13 @@ void main(){
     vec3 color = vec3(0.0);
 
     if(uIntensity_0.x == 1.0){
-       //color = mix(uColor - 0.1, uColor + 0.1, shading);//기본 아래는 컬러그림자
+        //color = mix(uColor - 0.1, uColor + 0.1, shading);//기본 아래는 컬러그림자
         // color = mix(shadowColor,1.0 - vec3(0.0,0.0,0.0), shading);
         // color += uColor * 0.5;
-        color = mix(shadowColor, uColor, shading)+ 0.1; 
+        color = mix(shadowColor, uColor, shading); 
     } 
     else if(uIntensity_0.y == 1.0){
-       // color = vec3(shading);
+        color = vec3(shading);
     }
     else if(uIntensity_0.z == 1.0){
         color = vec3(shadowFactor);
@@ -80,6 +80,6 @@ void main(){
     //vec3 color = mix(uColor  - 0.3 , uColor + 0.5, mix(uColor, vec3(1.0,1.0,0.0), 1.0 - shading ));//그림자 컬러? 가능할까?
     // check the result of the shadow factor.
     vec3 finCol = tex.rgb * color;
-    gl_FragColor = vec4(vec3(color)+0.05, 1.0);
+    gl_FragColor = vec4(vec3(color), 1.0);
    
 }
